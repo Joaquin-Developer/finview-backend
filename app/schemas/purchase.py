@@ -1,0 +1,129 @@
+from datetime import datetime
+from typing import List, Optional
+
+from pydantic import BaseModel, ConfigDict
+
+
+class PurchaseCategoryBase(BaseModel):
+    name: str
+    color: Optional[str] = None
+
+
+class PurchaseCategoryCreate(PurchaseCategoryBase):
+    pass
+
+
+class PurchaseCategoryUpdate(BaseModel):
+    name: Optional[str] = None
+    color: Optional[str] = None
+
+
+class PurchaseCategoryRead(PurchaseCategoryBase):
+    id: str
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class PurchaseCartItemBase(BaseModel):
+    product_name: str
+    price: float
+    quantity: int = 1
+    category_id: Optional[str] = None
+
+
+class PurchaseCartItemCreate(PurchaseCartItemBase):
+    pass
+
+
+class PurchaseCartItemUpdate(BaseModel):
+    product_name: Optional[str] = None
+    price: Optional[float] = None
+    quantity: Optional[int] = None
+    category_id: Optional[str] = None
+
+
+class PurchaseCartItemRead(PurchaseCartItemBase):
+    id: str
+    cart_id: str
+    category_name: Optional[str] = None
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class PurchaseCartBase(BaseModel):
+    store_name: str
+
+
+class PurchaseCartCreate(PurchaseCartBase):
+    pass
+
+
+class PurchaseCartUpdate(BaseModel):
+    store_name: Optional[str] = None
+    is_active: Optional[bool] = None
+
+
+class PurchaseCartRead(PurchaseCartBase):
+    id: str
+    user_id: str
+    is_active: bool
+    total: float
+    created_at: datetime
+    updated_at: datetime
+    completed_at: Optional[datetime] = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class PurchaseCartWithItems(PurchaseCartRead):
+    items: List[PurchaseCartItemRead] = []
+
+
+class PurchaseListItemBase(BaseModel):
+    product_name: str
+    quantity: Optional[int] = None
+
+
+class PurchaseListItemCreate(PurchaseListItemBase):
+    pass
+
+
+class PurchaseListItemUpdate(BaseModel):
+    product_name: Optional[str] = None
+    quantity: Optional[int] = None
+    is_checked: Optional[bool] = None
+
+
+class PurchaseListItemRead(PurchaseListItemBase):
+    id: str
+    list_id: str
+    is_checked: bool
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class PurchaseListBase(BaseModel):
+    name: str
+
+
+class PurchaseListCreate(PurchaseListBase):
+    pass
+
+
+class PurchaseListUpdate(BaseModel):
+    name: Optional[str] = None
+
+
+class PurchaseListRead(PurchaseListBase):
+    id: str
+    user_id: str
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class PurchaseListWithItems(PurchaseListRead):
+    items: List[PurchaseListItemRead] = []

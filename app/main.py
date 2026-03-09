@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.cors import CORSMiddleware as StarletteCORSMiddleware
 
-from .routers import auth, categories, statements, stats, transactions
+from .routers import auth, categories, statements, stats, transactions, purchase
 
 
 app = FastAPI(title="Finview - Analizador de gastos")
@@ -26,4 +26,5 @@ app.include_router(categories.router)
 app.include_router(statements.router)
 app.include_router(stats.router)
 app.include_router(transactions.router)
+app.include_router(purchase.router)
 
