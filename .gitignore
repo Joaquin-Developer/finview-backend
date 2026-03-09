@@ -2,7 +2,8 @@ __pycache__/
 *.pyc
 *.pyo
 
-.env
+.env              # Local environment (secrets)
+.env.development  # Development secrets
 .venv/
 
 uploads/
