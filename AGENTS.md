@@ -15,10 +15,38 @@ FastAPI-based backend for Finview expense tracking app. Provides REST API for ex
 
 ```bash
 # Development
+cp .env.development .env
 uvicorn app.main:app --reload --port 8000
 
-# With network exposure (for mobile testing)
-uvicorn app.main:app --reload --port 8000 --host 0.0.0.0
+# Production
+cp .env.production .env
+# Edit .env with production values
+uvicorn app.main:app --host 0.0.0.0 --port 8000
+```
+
+## Environment Variables
+
+Create a `.env` file (copy from `.env.development` or `.env.production`).
+
+| Variable | Description | Required |
+|----------|-------------|----------|
+| `DATABASE_URL` | MySQL connection string | Yes |
+| `SECRET_KEY` | JWT secret key | Yes |
+| `CORS_ORIGINS` | Comma-separated list of allowed origins | No |
+| `GEMINI_API_KEY` | Google Gemini API key | No |
+| `GROQ_API_KEY` | Groq API key | No |
+| `UPLOAD_DIR` | Directory for file uploads | No |
+| `MAX_FILE_SIZE_MB` | Max file size in MB | No |
+
+### Environment Files
+
+- `.env.default` - Template with all variables (committed to repo)
+- `.env.development` - Local development values (gitignored)
+- `.env.production` - Production template with empty values (committed to repo)
+
+**Setup for development:**
+```bash
+cp .env.development .env
 ```
 
 ## Project Structure
