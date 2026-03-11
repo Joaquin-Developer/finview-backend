@@ -88,19 +88,20 @@ def get_by_month(
 ):
     transactions = (
         db.query(
-            func.date_format(Transaction.date, "%Y-%m").label("month"),
+            func.extract('year', Transaction.date).label("year"),
+            func.extract('month', Transaction.date).label("month"),
             func.sum(func.abs(Transaction.amount)).label("total"),
             func.count(Transaction.id).label("count"),
         )
         .filter(Transaction.user_id == str(current_user.id))
-        .group_by(text("month"))
-        .order_by(text("month DESC"))
+        .group_by("year", "month")
+        .order_by(text("year DESC, month DESC"))
         .limit(months)
         .all()
     )
 
     return [
-        {"month": t.month, "total": float(t.total), "count": t.count}
+        {"month": f"{int(t.year)}-{int(t.month):02d}", "total": float(t.total), "count": t.count}
         for t in transactions
     ]
 
