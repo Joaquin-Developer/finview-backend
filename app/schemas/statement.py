@@ -62,3 +62,21 @@ class TransactionConfirm(BaseModel):
 class StatementConfirmRequest(BaseModel):
   transactions: List[TransactionConfirm]
 
+
+class ImportTransaction(BaseModel):
+  date: date
+  description: str
+  merchant: Optional[str] = None
+  amount: float
+  currency: str
+  installment_num: Optional[int] = None
+  installment_tot: Optional[int] = None
+  category_name: Optional[str] = None
+
+
+class StatementImportRequest(BaseModel):
+  bank_name: str
+  card_last4: Optional[str] = None
+  period_start: date
+  period_end: date
+  transactions: List[ImportTransaction]
