@@ -354,8 +354,8 @@ def get_statement_pdf(statement_id: str, db: DbDep, current_user: CurrentUserDep
 
 def _get_or_create_category(db: Session, user_id: str, name: str | None) -> str | None:
     """
-    Busca una categoría del usuario por nombre (case-insensitive); si no existe, la crea.
-    Devuelve el category_id, o None si no se pasó nombre.
+    Looks up a user's category by name (case-insensitive); creates it if missing.
+    Returns the category_id, or None if no name was provided.
     """
     if not name:
         return None
@@ -382,11 +382,11 @@ def import_statement(
     current_user: CurrentUserDep,
 ):
     """
-    Guarda directo un estado de cuenta ya parseado por un proceso externo (ej. el
-    script de Apps Script), sin pasar por upload de PDF ni por el paso de revisión
-    manual. Pensado para integraciones de confianza, no para el flujo de la web app.
+    Saves an already-parsed statement from a trusted external process (e.g. the
+    Apps Script automation) directly, without a PDF upload or the manual
+    pending_review step. Intended for trusted integrations, not the web app flow.
     """
-    # Evita duplicar el mismo banco+período si ya se importó antes
+    # Avoid duplicating the same bank+period if it was already imported before
     existing = (
         db.query(Statement)
         .filter(
