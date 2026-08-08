@@ -63,7 +63,7 @@ class StatementConfirmRequest(BaseModel):
   transactions: List[TransactionConfirm]
 
 
-class ImportTransaction(BaseModel):
+class ExternalTransaction(BaseModel):
   date: date
   description: str
   merchant: Optional[str] = None
@@ -74,9 +74,9 @@ class ImportTransaction(BaseModel):
   category_name: Optional[str] = None
 
 
-class StatementImportRequest(BaseModel):
+class ExternalStatementRequest(BaseModel):
   bank_name: str
   card_last4: Optional[str] = None
   period_start: date
   period_end: date
-  transactions: List[ImportTransaction]
+  transactions: List[ExternalTransaction]

@@ -17,9 +17,9 @@ from ..models.statement import Statement
 from ..models.transaction import Transaction
 from ..models.user import User
 from ..schemas.statement import (
+    ExternalStatementRequest,
     StatementConfirmRequest,
     StatementDetail,
-    StatementImportRequest,
     StatementListItem,
     StatementStatus,
     TransactionForReview,
@@ -375,9 +375,9 @@ def _get_or_create_category(db: Session, user_id: str, name: str | None) -> str 
     return category.id
 
 
-@router.post("/import", response_model=StatementListItem, status_code=status.HTTP_201_CREATED)
-def import_statement(
-    payload: StatementImportRequest,
+@router.post("/external", response_model=StatementListItem, status_code=status.HTTP_201_CREATED)
+def create_external_statement(
+    payload: ExternalStatementRequest,
     db: DbDep,
     current_user: CurrentUserDep,
 ):
