@@ -13,6 +13,8 @@ class Settings(BaseSettings):
     UPLOAD_DIR: str = "./uploads"
     MAX_FILE_SIZE_MB: int = 20
     CORS_ORIGINS: str = "http://localhost:5173,http://localhost:3000"
+    EXTERNAL_IMPORT_SECRET: str | None = None
+    EXTERNAL_IMPORT_ALLOWED_EMAIL: str | None = None
 
     @property
     def cors_origins_list(self) -> List[str]:

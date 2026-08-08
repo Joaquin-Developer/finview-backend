@@ -5,7 +5,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Annotated, List
 
-from fastapi import APIRouter, BackgroundTasks, Depends, File, HTTPException, UploadFile, status
+from fastapi import APIRouter, BackgroundTasks, Depends, File, Header, HTTPException, UploadFile, status
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 
@@ -380,12 +380,28 @@ def create_external_statement(
     payload: ExternalStatementRequest,
     db: DbDep,
     current_user: CurrentUserDep,
+    x_external_import_key: Annotated[str | None, Header()] = None,
 ):
     """
     Saves an already-parsed statement from a trusted external process (e.g. the
     Apps Script automation) directly, without a PDF upload or the manual
     pending_review step. Intended for trusted integrations, not the web app flow.
+
+    Restricted on purpose: requires a shared secret (X-External-Import-Key header,
+    matching EXTERNAL_IMPORT_SECRET) that only lives in the Apps Script project's
+    Script Properties — never in the web app — and only works for the account
+    configured in EXTERNAL_IMPORT_ALLOWED_EMAIL. This keeps the bypass-review path
+    scoped to the personal automation, not exposed as a general app feature.
     """
+    is_authorized = (
+        settings.EXTERNAL_IMPORT_SECRET
+        and x_external_import_key == settings.EXTERNAL_IMPORT_SECRET
+        and settings.EXTERNAL_IMPORT_ALLOWED_EMAIL
+        and current_user.email == settings.EXTERNAL_IMPORT_ALLOWED_EMAIL
+    )
+    if not is_authorized:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not allowed")
+
     # Avoid duplicating the same bank+period if it was already imported before
     existing = (
         db.query(Statement)
