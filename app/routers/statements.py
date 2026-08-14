@@ -5,17 +5,19 @@ from datetime import datetime
 from pathlib import Path
 from typing import Annotated, List
 
-from fastapi import APIRouter, BackgroundTasks, Depends, File, HTTPException, UploadFile, status
+from fastapi import APIRouter, BackgroundTasks, Depends, File, Header, HTTPException, UploadFile, status
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 
 from ..config import get_settings
 from ..database import SessionLocal, get_db
 from ..dependencies import get_current_user
+from ..models.category import Category
 from ..models.statement import Statement
 from ..models.transaction import Transaction
 from ..models.user import User
 from ..schemas.statement import (
+    ExternalStatementRequest,
     StatementConfirmRequest,
     StatementDetail,
     StatementListItem,
@@ -349,3 +351,107 @@ def get_statement_pdf(statement_id: str, db: DbDep, current_user: CurrentUserDep
 
     return FileResponse(path, media_type="application/pdf", filename=stmt.filename or path.name)
 
+
+def _get_or_create_category(db: Session, user_id: str, name: str | None) -> str | None:
+    """
+    Looks up a user's category by name (case-insensitive); creates it if missing.
+    Returns the category_id, or None if no name was provided.
+    """
+    if not name:
+        return None
+
+    category = (
+        db.query(Category)
+        .filter(Category.user_id == user_id, Category.name.ilike(name))
+        .first()
+    )
+    if category:
+        return category.id
+
+    category = Category(user_id=user_id, name=name)
+    db.add(category)
+    db.commit()
+    db.refresh(category)
+    return category.id
+
+
+@router.post("/external", response_model=StatementListItem, status_code=status.HTTP_201_CREATED)
+def create_external_statement(
+    payload: ExternalStatementRequest,
+    db: DbDep,
+    current_user: CurrentUserDep,
+    x_external_import_key: Annotated[str | None, Header()] = None,
+):
+    """
+    Saves an already-parsed statement from a trusted external process (e.g. the
+    Apps Script automation) directly, without a PDF upload or the manual
+    pending_review step. Intended for trusted integrations, not the web app flow.
+
+    Restricted on purpose: requires a shared secret (X-External-Import-Key header,
+    matching EXTERNAL_IMPORT_SECRET) that only lives in the Apps Script project's
+    Script Properties — never in the web app — and only works for the account
+    configured in EXTERNAL_IMPORT_ALLOWED_EMAIL. This keeps the bypass-review path
+    scoped to the personal automation, not exposed as a general app feature.
+    """
+    is_authorized = (
+        settings.EXTERNAL_IMPORT_SECRET
+        and x_external_import_key == settings.EXTERNAL_IMPORT_SECRET
+        and settings.EXTERNAL_IMPORT_ALLOWED_EMAIL
+        and current_user.email == settings.EXTERNAL_IMPORT_ALLOWED_EMAIL
+    )
+    if not is_authorized:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not allowed")
+
+    # Avoid duplicating the same bank+period if it was already imported before
+    existing = (
+        db.query(Statement)
+        .filter(
+            Statement.user_id == str(current_user.id),
+            Statement.bank_name == payload.bank_name,
+            Statement.period_start == payload.period_start,
+            Statement.period_end == payload.period_end,
+            Statement.status == "confirmed",
+        )
+        .first()
+    )
+    if existing:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Ya existe un estado de cuenta confirmado para ese banco y período.",
+        )
+
+    stmt = Statement(
+        user_id=str(current_user.id),
+        filename=None,
+        file_path=None,
+        file_hash=None,
+        bank_name=payload.bank_name,
+        card_last4=payload.card_last4,
+        period_start=payload.period_start,
+        period_end=payload.period_end,
+        status="confirmed",
+        confirmed_at=datetime.utcnow(),
+    )
+    db.add(stmt)
+    db.commit()
+    db.refresh(stmt)
+
+    for tx in payload.transactions:
+        category_id = _get_or_create_category(db, str(current_user.id), tx.category_name)
+        transaction = Transaction(
+            statement_id=stmt.id,
+            user_id=str(current_user.id),
+            date=tx.date,
+            description=tx.description,
+            merchant=tx.merchant,
+            amount=tx.amount,
+            currency=tx.currency,
+            category_id=category_id,
+            category_source="ai",
+            installment_num=tx.installment_num,
+            installment_tot=tx.installment_tot,
+        )
+        db.add(transaction)
+
+    db.commit()
+    return stmt

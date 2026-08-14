@@ -37,6 +37,8 @@ Create a `.env` file (copy from `.env.development` or `.env.production`).
 | `GROQ_API_KEY` | Groq API key | No |
 | `UPLOAD_DIR` | Directory for file uploads | No |
 | `MAX_FILE_SIZE_MB` | Max file size in MB | No |
+| `EXTERNAL_IMPORT_SECRET` | Shared secret required (as `X-External-Import-Key` header) to call `POST /api/v1/statements/external` | No |
+| `EXTERNAL_IMPORT_ALLOWED_EMAIL` | Only this account can use `POST /api/v1/statements/external` | No |
 
 ### Environment Files
 
