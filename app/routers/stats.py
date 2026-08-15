@@ -106,6 +106,26 @@ def get_by_month(
     ]
 
 
+def _get_latest_statement_date_range(db: Session, user_id: str):
+    """
+    Returns (period_start, period_end) of the most recently confirmed statement
+    (by period_end), or None if there isn't one yet.
+    """
+    latest_statement = (
+        db.query(Statement)
+        .filter(
+            Statement.user_id == user_id,
+            Statement.status == "confirmed",
+            Statement.period_end != None,
+        )
+        .order_by(Statement.period_end.desc())
+        .first()
+    )
+    if not latest_statement:
+        return None
+    return latest_statement.period_start, latest_statement.period_end
+
+
 @router.get("/by-category")
 def get_by_category(
     db: DbDep,
@@ -115,24 +135,12 @@ def get_by_category(
     date_filters = []
 
     if period == "latest":
-        latest_statement = (
-            db.query(Statement)
-            .filter(
-                Statement.user_id == str(current_user.id),
-                Statement.status == "confirmed",
-                Statement.period_end != None,
-            )
-            .order_by(Statement.period_end.desc())
-            .first()
-        )
-        if latest_statement:
-            date_filters = [
-                Transaction.date >= latest_statement.period_start,
-                Transaction.date <= latest_statement.period_end,
-            ]
-        else:
+        date_range = _get_latest_statement_date_range(db, str(current_user.id))
+        if not date_range:
             # No confirmed statement with a period yet — nothing to show for "latest"
             return []
+        period_start, period_end = date_range
+        date_filters = [Transaction.date >= period_start, Transaction.date <= period_end]
 
     transactions = (
         db.query(
@@ -172,7 +180,19 @@ def get_by_category(
 
 
 @router.get("/by-bank")
-def get_by_bank(db: DbDep, current_user: CurrentUserDep):
+def get_by_bank(
+    db: DbDep,
+    current_user: CurrentUserDep,
+    period: str = Query("all", pattern="^(all|latest)$"),
+):
+    date_filters = []
+    if period == "latest":
+        date_range = _get_latest_statement_date_range(db, str(current_user.id))
+        if not date_range:
+            return []
+        period_start, period_end = date_range
+        date_filters = [Transaction.date >= period_start, Transaction.date <= period_end]
+
     transactions = (
         db.query(
             Statement.bank_name,
@@ -180,7 +200,7 @@ def get_by_bank(db: DbDep, current_user: CurrentUserDep):
             func.count(Transaction.id).label("count"),
         )
         .join(Statement, Transaction.statement_id == Statement.id)
-        .filter(Transaction.user_id == str(current_user.id))
+        .filter(Transaction.user_id == str(current_user.id), *date_filters)
         .group_by(Statement.bank_name)
         .order_by(func.sum(func.abs(Transaction.amount)).desc())
         .all()
@@ -198,7 +218,16 @@ def get_top_merchants(
     db: DbDep,
     current_user: CurrentUserDep,
     limit: int = Query(default=10, ge=1, le=50),
+    period: str = Query("all", pattern="^(all|latest)$"),
 ):
+    date_filters = []
+    if period == "latest":
+        date_range = _get_latest_statement_date_range(db, str(current_user.id))
+        if not date_range:
+            return []
+        period_start, period_end = date_range
+        date_filters = [Transaction.date >= period_start, Transaction.date <= period_end]
+
     merchants = (
         db.query(
             Transaction.merchant,
@@ -209,6 +238,7 @@ def get_top_merchants(
             Transaction.user_id == str(current_user.id),
             Transaction.merchant != None,
             Transaction.merchant != "",
+            *date_filters,
         )
         .group_by(Transaction.merchant)
         .order_by(func.sum(func.abs(Transaction.amount)).desc())
