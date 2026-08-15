@@ -107,7 +107,33 @@ def get_by_month(
 
 
 @router.get("/by-category")
-def get_by_category(db: DbDep, current_user: CurrentUserDep):
+def get_by_category(
+    db: DbDep,
+    current_user: CurrentUserDep,
+    period: str = Query("all", pattern="^(all|latest)$"),
+):
+    date_filters = []
+
+    if period == "latest":
+        latest_statement = (
+            db.query(Statement)
+            .filter(
+                Statement.user_id == str(current_user.id),
+                Statement.status == "confirmed",
+                Statement.period_end != None,
+            )
+            .order_by(Statement.period_end.desc())
+            .first()
+        )
+        if latest_statement:
+            date_filters = [
+                Transaction.date >= latest_statement.period_start,
+                Transaction.date <= latest_statement.period_end,
+            ]
+        else:
+            # No confirmed statement with a period yet — nothing to show for "latest"
+            return []
+
     transactions = (
         db.query(
             Category.name,
@@ -115,7 +141,7 @@ def get_by_category(db: DbDep, current_user: CurrentUserDep):
             func.count(Transaction.id).label("count"),
         )
         .join(Category, Transaction.category_id == Category.id)
-        .filter(Transaction.user_id == str(current_user.id))
+        .filter(Transaction.user_id == str(current_user.id), *date_filters)
         .group_by(Category.id, Category.name)
         .order_by(func.sum(func.abs(Transaction.amount)).desc())
         .all()
@@ -129,6 +155,7 @@ def get_by_category(db: DbDep, current_user: CurrentUserDep):
         .filter(
             Transaction.user_id == str(current_user.id),
             Transaction.category_id == None,
+            *date_filters,
         )
         .first()
     )
