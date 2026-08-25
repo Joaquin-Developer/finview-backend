@@ -89,6 +89,38 @@ app/
 | `purchase_list_items` | Items in lists |
 | `purchase_categories` | Categories for purchases |
 
+## Core API Endpoints
+
+All routes are under `/api/v1`. This covers everything outside the Purchase
+module (see below for that).
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/auth/register` | Create a user |
+| POST | `/auth/login` | OAuth2 password flow (form-encoded `username`/`password`, `username` holds the email); returns `{access_token, token_type}` |
+| GET | `/auth/me` | Current user |
+| POST | `/statements/` | Upload a PDF statement (multipart); creates a `Statement`, parses it in the background, status starts as `processing` |
+| GET | `/statements/` | List the user's statements |
+| GET | `/statements/{id}/status` | Poll parse status (`processing` → `pending_review` or `error`) |
+| GET | `/statements/{id}` | Get parsed transactions for review (requires `pending_review`) |
+| POST | `/statements/{id}/confirm` | Save reviewed/edited transactions as confirmed |
+| DELETE | `/statements/{id}` | Delete a statement and its file |
+| GET | `/statements/{id}/pdf` | Download the original PDF |
+| POST | `/statements/external` | Trusted external import — accepts an already-parsed statement as JSON (`category_name` per transaction, not `category_id`) and saves it directly as `confirmed`, skipping upload and review. Requires `X-External-Import-Key` header matching `EXTERNAL_IMPORT_SECRET`, and only works for the account in `EXTERNAL_IMPORT_ALLOWED_EMAIL`. Built for the Apps Script automation, not the web app. |
+| GET | `/transactions/` | List transactions (filters + pagination) |
+| DELETE | `/transactions/{id}` | Delete a transaction |
+| GET | `/categories/` | List the user's categories |
+| POST | `/categories/` | Create a category |
+| PUT | `/categories/{id}` | Update a category |
+| DELETE | `/categories/{id}` | Delete a category |
+| POST | `/categories/seed` | Bulk-create a default set of categories |
+| GET | `/stats/summary` | Totals: transaction count, current/previous month spend, categories/statements count |
+| GET | `/stats/by-month?months=N` | Spend grouped by calendar month |
+| GET | `/stats/by-category?period=all\|latest` | Spend grouped by category. `latest` scopes to the date range of the most recently confirmed statement (by `period_end`) instead of all-time |
+| GET | `/stats/by-bank?period=all\|latest` | Spend grouped by bank; same `period` semantics |
+| GET | `/stats/top-merchants?limit=N&period=all\|latest` | Top merchants by spend; same `period` semantics |
+| GET | `/stats/trends?days=N` | Daily totals for the last N days (from today's date, not from the latest transaction — days with no transactions simply don't appear, they aren't zero-filled) |
+
 ## Purchase Module (Módulo de Compras)
 
 Independent from expense tracking. Uses `purchase_` prefix for all tables.
